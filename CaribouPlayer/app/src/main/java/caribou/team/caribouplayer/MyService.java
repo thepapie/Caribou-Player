@@ -4,34 +4,35 @@ import android.app.Service;
 import android.content.Intent;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.net.Uri;
+import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
-
 import java.util.ArrayList;
 import java.util.Random;
 
 public class MyService extends Service {
-    public MyService() {
-    }
 
-    private IBinder myBinder;
+    private IBinder monBinder;
     int position = 0;
     ArrayList<String> playlist = new ArrayList<>();
     MediaPlayer mediaPlayer = new MediaPlayer();
-    Boolean isRepeat;
-    Boolean isShuffle;
+    Boolean isRepeat = false;
+    Boolean isShuffle = false;
     Random random = new Random();
-
-    @Override
-    public IBinder onBind(Intent intent) {
-
-        return myBinder;
-
-    }
 
     @Override
     public void onCreate() {
         super.onCreate();
+        monBinder = new MyBinderDActivite();
+
+        Log.i("CARIBOU-SERVICE", "Service Created");
+
+        playlist.add("/storage/emulated/0/Music/Calme/Creep.mp3");
+        playlist.add("/storage/emulated/0/Music/Calme/Outro.mp3");
+        playlist.add("/storage/emulated/0/Music/Calme/Hurt.mp3");
+        playlist.add("/storage/emulated/0/Music/Calme/Redbone.mp3");
+
         mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
         mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener()
         {
@@ -42,6 +43,40 @@ public class MyService extends Service {
         });
     }
 
+    @Override
+    public IBinder onBind(Intent intent) {
+
+
+        Log.i("CARIBOU-SERVICE", "Service Binded");
+        return monBinder;
+    }
+
+    @Override
+    public boolean onUnbind(Intent intent)
+    {
+
+        Log.i("CARIBOU-SERVICE", "Service Unbinded");
+        return false;
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        Log.i("CARIBOU-SERVICE", "Service Killed");
+    }
+
+
+
+    public class MyBinderDActivite extends Binder {
+        MyService getMyService() {
+
+            Log.i("CARIBOU-SERVICE", "Service Binded");
+            return MyService.this;
+        }
+    }
+
+    /*Setters*/
+
     public void setRepeat(Boolean repeat) {
         isRepeat = repeat;
     }
@@ -50,19 +85,26 @@ public class MyService extends Service {
         isShuffle = shuffle;
     }
 
+    public void setPlaylist(ArrayList<String> playlist) {
+        this.playlist = playlist;
+    }
+
+    /*Methodes*/
+
     public void play()
     {
         try
         {
             mediaPlayer.reset();
-            mediaPlayer.setDataSource(playlist.get(position));
+            mediaPlayer.setDataSource(this, Uri.parse(playlist.get(position)));
             mediaPlayer.prepare();
             mediaPlayer.start();
+            Log.i("CARIBOU-SERVICE", "Playing " + playlist.get(position));
         }
 
         catch (Exception e)
         {
-            Log.i("DIM-DEBUG", e.getMessage());
+            Log.i("CARIBOU-SERVICE", e.getMessage());
         }
     }
 
@@ -71,10 +113,12 @@ public class MyService extends Service {
         if (mediaPlayer.isPlaying())
         {
             mediaPlayer.pause();
+            Log.i("CARIBOU-SERVICE", "Music paused");
         }
         else
         {
             mediaPlayer.start();
+            Log.i("CARIBOU-SERVICE", "Music resumed");
         }
     }
 
