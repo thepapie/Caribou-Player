@@ -14,12 +14,15 @@ import java.util.Random;
 public class MyService extends Service {
 
     private IBinder monBinder;
-    int position = 0;
-    ArrayList<String> playlist = new ArrayList<>();
-    MediaPlayer mediaPlayer = new MediaPlayer();
-    Boolean isRepeat = false;
-    Boolean isShuffle = false;
-    Random random = new Random();
+    private int position;
+    private int shuffleIterator;
+    private ArrayList<String> playlist;
+    private ArrayList<Integer> shuffleOrder;
+    private MediaPlayer mediaPlayer;
+    private Boolean isRepeat;
+    private Boolean isLoop;
+    private Boolean isShuffle;
+    private Random random;
 
     @Override
     public void onCreate() {
@@ -28,10 +31,15 @@ public class MyService extends Service {
 
         Log.i("CARIBOU-SERVICE", "Service Created");
 
-        playlist.add("/storage/emulated/0/Music/Calme/Creep.mp3");
-        playlist.add("/storage/emulated/0/Music/Calme/Outro.mp3");
-        playlist.add("/storage/emulated/0/Music/Calme/Hurt.mp3");
-        playlist.add("/storage/emulated/0/Music/Calme/Redbone.mp3");
+        playlist = new ArrayList<>();
+        shuffleOrder = new ArrayList<>();
+        mediaPlayer = new MediaPlayer();
+        random = new Random();
+        isLoop = false;
+        isRepeat = false;
+        isShuffle = false;
+        position = 0;
+        shuffleIterator = 0;
 
         mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
         mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener()
@@ -77,8 +85,12 @@ public class MyService extends Service {
 
     /*Setters*/
 
+    public void setLoop(Boolean loop) {
+        isLoop = loop;
+    }
+
     public void setRepeat(Boolean repeat) {
-        isRepeat = repeat;
+        isLoop = repeat;
     }
 
     public void setShuffle(Boolean shuffle) {
@@ -87,6 +99,14 @@ public class MyService extends Service {
 
     public void setPlaylist(ArrayList<String> playlist) {
         this.playlist = playlist;
+    }
+
+    public void setPosition(int position) {
+        this.position = position;
+    }
+
+    public int getPosition() {
+        return position;
     }
 
     /*Methodes*/
@@ -124,43 +144,56 @@ public class MyService extends Service {
 
     public void next()
     {
-        if (position + 1 >= playlist.size())
+        if (isShuffle && shuffleIterator + 1 < shuffleOrder.size())
         {
-            mediaPlayer.stop();
+            ++shuffleIterator;
+            position = shuffleOrder.get(shuffleIterator);
+            play();
         }
-        else
+        else if (!isShuffle && position + 1 < playlist.size())
+        {
+            ++position;
+            play();
+        }
+        else if (isLoop)
         {
             if (isShuffle)
             {
-                position = random.nextInt(playlist.size() - 1);
+                shuffleIterator = 0;
+                position = shuffleOrder.get(0);
             }
-            else if (position + 1 < playlist.size())
-            {
-                ++position;
-            }
-            else if (isRepeat)
+            else
             {
                 position = 0;
             }
             play();
         }
+        else
+        {
+            mediaPlayer.stop();
+            Log.i("CARIBOU-SERVICE", "Music stoped");
+        }
     }
 
     public void previous()
     {
-        if (position - 1 < 0)
+        if (isShuffle && shuffleIterator - 1 >= 0)
         {
-            mediaPlayer.stop();
+            --shuffleIterator;
+            position = shuffleOrder.get(shuffleIterator);
+            play();
         }
-        else
+        else if (!isShuffle && position - 1 >= 0)
+        {
+            --position;
+            play();
+        }
+        else if (isLoop)
         {
             if (isShuffle)
             {
-                position = random.nextInt(playlist.size() - 1);
-            }
-            else if (position - 1 >= 0)
-            {
-                --position;
+                shuffleIterator = playlist.size() - 1;
+                position = shuffleOrder.get(shuffleIterator);
             }
             else
             {
@@ -168,5 +201,36 @@ public class MyService extends Service {
             }
             play();
         }
+        else
+        {
+            mediaPlayer.stop();
+            Log.i("CARIBOU-SERVICE", "Music stoped");
+        }
+    }
+
+    public void addEnd(String path)
+    {
+        playlist.add(path);
+    }
+
+    public void addNext(String path)
+    {
+        playlist.add(position + 1, path);
+    }
+
+    public void shuffle()
+    {
+        shuffleIterator = 0;
+        shuffleOrder = new ArrayList<>();
+        shuffleOrder.add(0);
+        for (int i = 1; i < playlist.size(); i++)
+        {
+            shuffleOrder.add(random.nextInt(shuffleOrder.size()) + 1, i);
+        }
+    }
+
+    public void repeat()
+    {
+        mediaPlayer.setLooping(isRepeat);
     }
 }
